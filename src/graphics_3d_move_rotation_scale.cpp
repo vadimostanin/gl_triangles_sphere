@@ -5,14 +5,40 @@
 // Copyright   : Your copyright notice
 // Description : Hello World in C++, Ansi-style
 //============================================================================
-
+#include <unistd.h>
 #include <GL/glut.h>
 #include <iostream>
 using namespace std;
-        
-int x = 0, 
-    y = 0, 
-    z = 0;
+
+class Person
+{
+public:
+	class _Coord
+	{
+	public:
+		double x,z;
+	};
+	class _Rotation
+	{
+	public:
+		double y,x;
+	};
+
+	_Coord Coord;
+	_Rotation Rotation;
+};
+//************************************************************************************
+int MouseOld_x=0, MouseOld_y=0;
+int WinWidth=640, WinHeight=480;
+Person User;
+//************************************************************************************
+void Init(void);
+void DrawEnvironment(void);
+void Display(void);
+void Keyboard(unsigned char key, int x, int y);
+void Reshape(void);
+void MouseMotion(int x, int y);
+//************************************************************************************
 
 static void _print_matrix(float *m)
 {
@@ -27,95 +53,116 @@ static void _print_matrix(float *m)
     }
 }
 
-static void reshape(int width, int height)
+void Init(void)
 {
-    cout << "reshape enter" << endl;
-    glViewport(0, 0, width, height);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-//    gluOrtho2D(0, width, 0, height);
-    glOrtho(0, width, height, 0, 1, -1);
-    glMatrixMode(GL_MODELVIEW);
-//    glLoadIdentity();
-    cout << "reshape leave" << endl;
+	//glEnable(GL_DEPTH_TEST);
+	User.Coord.x=0;
+	User.Coord.z=0;
+	User.Rotation.x=0;
+	User.Rotation.y=0;
 }
 
-static void display()
+void DrawEnvironment(void)
 {
-    cout << "display enter" << endl;
-    
-    glClear(GL_COLOR_BUFFER_BIT);
-    glBegin(GL_TRIANGLES);
-    glLineWidth(100);
-    glColor3f(1.0, 1.0, 1.0);
-    glVertex2i(250, 450);
-    glColor3f(1.0, 0.0, 0.0);
-    glVertex2i(250, 150);
-    glColor3f(0.0, 1.0, 0.0);
-    glVertex2i(550, 150);
-    glColor3f(0.0, 0.0, 1.0);
-    glEnd();
-    glBegin(GL_TRIANGLES);
-    glColor3f(0.0, 1.0, 0.0);
-    glVertex2i(550, 150);
-    glColor3f(0.0, 0.0, 1.0);
-    glVertex2i(550, 450);
-    glColor3f(1.0, 0.0, 1.0);
-    glVertex2i(800, 450);
-    
-    float m[16] = {0};
-    glGetFloatv(GL_MODELVIEW_MATRIX, m);
-    _print_matrix(m);
-    glTranslatef(x, y, z);
-    
-    glGetFloatv(GL_MODELVIEW_MATRIX, m);
-    _print_matrix(m);
-    
-    glEnd();
-    glFlush();
-    glutSwapBuffers();
-    cout << "display enter" << endl;
-}
-
-void keyboard(unsigned char key, int a, int b)
-{
-    cout<<"key="<<key<<"; a="<<a<<"; b="<<b<<flush;
-}
-
-void special_keyboard(int a, int b, int c)
-{
-    cout<<"a="<<a<<"; b="<<b<<"; c="<<c<<endl;
-    
-    switch(a)
+    glColor3f(1,1,1);
+    for (int i = -100;i<100;i++)
     {
-        case 100://LEFT
-//            glTranslatef(1, 0, 0);
-        {
-            x++;
-        }
-        break;
-        case 101://UP
-        break;
-        case 102://RIGHT
-        break;
-        case 103://DOWN
-        break;
+        glBegin(GL_LINES);
+            glVertex3f(-100,-1,i);
+            glVertex3f(-0,-1,i);
+            glVertex3f(i,-1,100);
+            glVertex3f(i,-1,-100);
+        glEnd();
+//        glutSwapBuffers();
+//                    usleep(300);
     }
 }
 
-int main(int argc, char **argv) {
-	cout << "!!!Hello World!!!" << endl; // prints !!!Hello World!!!
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DOUBLE|GLUT_RGBA);
-	glutInitWindowSize(800, 600);
-	glutCreateWindow("Sample");
-	glutReshapeFunc(reshape);
-	glutKeyboardFunc(keyboard);
-	glutSpecialFunc(special_keyboard);
-	glClearColor(0.5, 0.5, 0.5, 0);
-	glutDisplayFunc(display);
-	
+void Display(void)
+{
+	glClearColor(0.5,0.5,0.5,0.0);
+	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glMatrixMode (GL_MODELVIEW);
+	glLoadIdentity();
+
+	  glRotatef(User.Rotation.y, 0,1,0);
+	  
+	  float m[16] = {0};
+      glGetFloatv(GL_MODELVIEW_MATRIX, m);
+      _print_matrix(m);
+      
+	  glRotatef(User.Rotation.x, 1,0,0);
+	  glGetFloatv(GL_MODELVIEW_MATRIX, m);
+	  _print_matrix(m);
+
+      glTranslatef(User.Coord.x,0,User.Coord.z);
+      glGetFloatv(GL_MODELVIEW_MATRIX, m);
+      _print_matrix(m);
+
+
+
+
+	  DrawEnvironment();
+	glutSwapBuffers();
+}
+
+void Keyboard(unsigned char key, int x, int y)
+{
+	if (key=='w') {User.Coord.z+=0.1;}
+	if (key=='s') {User.Coord.z-=0.1;}
+    if (key=='a') {User.Coord.x+=0.1;}
+    if (key=='d') {User.Coord.x-=0.1;}
+	if (key=='x') {User.Rotation.x++;}
+	if (key=='y') {User.Rotation.y++;}
+	glutPostRedisplay();
+};
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//!?  СОБСТВЕННО РЕАЛИЗАЦИЯ ПОВРОТА:
+void MouseMotion(int x, int y)
+{
+	User.Rotation.x+=(y-MouseOld_y)/4;
+	User.Rotation.y-=(x-MouseOld_x)/4;
+	MouseOld_x=x;
+	MouseOld_y=y;
+	glutPostRedisplay();
+
+};
+
+
+void Reshape (int w, int h)
+{
+	WinWidth=w;
+	WinHeight=h;
+	glViewport(0,0,WinWidth,WinHeight);
+	glMatrixMode (GL_PROJECTION);
+	glLoadIdentity();
+	gluPerspective(120,WinWidth/WinHeight, 0.001, 80.0);//???
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+
+	glutPostRedisplay();
+}
+
+
+
+int main(int argc, char** argv)
+{
+	// Initialization GLUT
+	glutInit (&argc,argv);
+	glutInitDisplayMode (GLUT_RGBA | GLUT_DOUBLE);
+    glutInitWindowSize (WinWidth,WinHeight);
+    glutInitWindowPosition (100,100);
+    glutCreateWindow ("Type Two Engine");
+    // -------------------
+    Init();
+	// -------------------
+	glutDisplayFunc(Display);
+	glutReshapeFunc(Reshape);
+	glutKeyboardFunc(Keyboard);
+	glutMotionFunc(MouseMotion);
 	glutMainLoop();
-	
+	//--------------------
 	return 0;
-} 
+}

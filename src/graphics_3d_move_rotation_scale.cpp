@@ -1,168 +1,104 @@
-//============================================================================
-// Name        : graphics_3d_move_rotation_scale.cpp
-// Author      : 
-// Version     :
-// Copyright   : Your copyright notice
-// Description : Hello World in C++, Ansi-style
-//============================================================================
-#include <unistd.h>
-#include <GL/glut.h>
-#include <iostream>
-using namespace std;
+// -- Written in C -- //
 
-class Person
+#include<stdio.h>
+#include<stdlib.h>
+#include<X11/X.h>
+#include<X11/Xlib.h>
+#include<GL/gl.h>
+#include<GL/glx.h>
+#include<GL/glu.h>
+
+Display                 *dpy;
+Window                  root;
+GLint                   att[] = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
+XVisualInfo             *vi;
+Colormap                cmap;
+XSetWindowAttributes    swa;
+Window                  win;
+GLXContext              glc;
+XWindowAttributes       gwa;
+XEvent                  xev;
+
+void DrawAQuad()
 {
-public:
-	class _Coord
-	{
-	public:
-		double x,z;
-	};
-	class _Rotation
-	{
-	public:
-		double y,x;
-	};
+    glClearColor(1.0, 1.0, 1.0, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(-10., 10., -10., 10., 1., 20.);
+    
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    gluLookAt(0., 0., 10., 0., 0., 0., 0., 1., 0.);
+    
+    glBegin(GL_QUADS);
+    glColor3f(1., 0., 0.); glVertex3f(-.75, -.75, 0.);
+    glColor3f(0., 1., 0.); glVertex3f( .75, -.75, 0.);
+    glColor3f(0., 0., 1.); glVertex3f( .75,  .75, 0.);
+    glColor3f(1., 1., 0.); glVertex3f(-.75,  .75, 0.);
+    glEnd();
+} 
 
-	_Coord Coord;
-	_Rotation Rotation;
-};
-//************************************************************************************
-int MouseOld_x=0, MouseOld_y=0;
-int WinWidth=640, WinHeight=480;
-Person User;
-//************************************************************************************
-void Init(void);
-void DrawEnvironment(void);
-void Display(void);
-void Keyboard(unsigned char key, int x, int y);
-void Reshape(void);
-void MouseMotion(int x, int y);
-//************************************************************************************
-
-static void _print_matrix(float *m)
+int main(int argc, char *argv[])
 {
-    for(int i = 0 ; i < 4 ; i ++)
+    dpy = XOpenDisplay(NULL);
+    
+    if(dpy == NULL)
     {
-        cout<<"|";
-        for(int j = 0 ; j < 4 ; j++)
+        printf("\n\tcannot connect to X server\n\n");
+        exit(0);
+    }
+    
+    root = DefaultRootWindow(dpy);
+    
+    vi = glXChooseVisual(dpy, 0, att);
+    
+    if(vi == NULL)
+    {
+        printf("\n\tno appropriate visual found\n\n");
+        exit(0);
+    }
+    else
+    {
+        printf("\n\tvisual %p selected\n", (void *)vi->visualid); /* %p creates hexadecimal output like in glxinfo */
+    }
+    
+    
+    cmap = XCreateColormap(dpy, root, vi->visual, AllocNone);
+    
+    swa.colormap = cmap;
+    swa.event_mask = ExposureMask | KeyPressMask;
+    
+    win = XCreateWindow(dpy, root, 0, 0, 600, 600, 0, vi->depth, InputOutput, vi->visual, CWColormap | CWEventMask, &swa);
+    
+    XMapWindow(dpy, win);
+    XStoreName(dpy, win, "VERY SIMPLE APPLICATION");
+    
+    glc = glXCreateContext(dpy, vi, NULL, GL_TRUE);
+    glXMakeCurrent(dpy, win, glc);
+    
+    glEnable(GL_DEPTH_TEST); 
+    
+    while(1)
+    {
+        XNextEvent(dpy, &xev);
+        
+        if(xev.type == Expose)
         {
-            cout<<" "<<m[i*4 + j]<<" ";
+            XGetWindowAttributes(dpy, win, &gwa);
+            glViewport(0, 0, gwa.width, gwa.height);
+            DrawAQuad(); 
+            glXSwapBuffers(dpy, win);
         }
-        cout<<"|"<<endl;
-    }
-}
-
-void Init(void)
-{
-	//glEnable(GL_DEPTH_TEST);
-	User.Coord.x=0;
-	User.Coord.z=0;
-	User.Rotation.x=0;
-	User.Rotation.y=0;
-}
-
-void DrawEnvironment(void)
-{
-    glColor3f(1,1,1);
-    for (int i = -100;i<100;i++)
-    {
-        glBegin(GL_LINES);
-            glVertex3f(-100,-1,i);
-            glVertex3f(-0,-1,i);
-            glVertex3f(i,-1,100);
-            glVertex3f(i,-1,-100);
-        glEnd();
-//        glutSwapBuffers();
-//                    usleep(300);
-    }
-}
-
-void Display(void)
-{
-	glClearColor(0.5,0.5,0.5,0.0);
-	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	glMatrixMode (GL_MODELVIEW);
-	glLoadIdentity();
-
-	  glRotatef(User.Rotation.y, 0,1,0);
-	  
-	  float m[16] = {0};
-      glGetFloatv(GL_MODELVIEW_MATRIX, m);
-      _print_matrix(m);
-      
-	  glRotatef(User.Rotation.x, 1,0,0);
-	  glGetFloatv(GL_MODELVIEW_MATRIX, m);
-	  _print_matrix(m);
-
-      glTranslatef(User.Coord.x,0,User.Coord.z);
-      glGetFloatv(GL_MODELVIEW_MATRIX, m);
-      _print_matrix(m);
-
-
-
-
-	  DrawEnvironment();
-	glutSwapBuffers();
-}
-
-void Keyboard(unsigned char key, int x, int y)
-{
-	if (key=='w') {User.Coord.z+=0.1;}
-	if (key=='s') {User.Coord.z-=0.1;}
-    if (key=='a') {User.Coord.x+=0.1;}
-    if (key=='d') {User.Coord.x-=0.1;}
-	if (key=='x') {User.Rotation.x++;}
-	if (key=='y') {User.Rotation.y++;}
-	glutPostRedisplay();
-};
-//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//!?  СОБСТВЕННО РЕАЛИЗАЦИЯ ПОВРОТА:
-void MouseMotion(int x, int y)
-{
-	User.Rotation.x+=(y-MouseOld_y)/4;
-	User.Rotation.y-=(x-MouseOld_x)/4;
-	MouseOld_x=x;
-	MouseOld_y=y;
-	glutPostRedisplay();
-
-};
-
-
-void Reshape (int w, int h)
-{
-	WinWidth=w;
-	WinHeight=h;
-	glViewport(0,0,WinWidth,WinHeight);
-	glMatrixMode (GL_PROJECTION);
-	glLoadIdentity();
-	gluPerspective(120,WinWidth/WinHeight, 0.001, 80.0);//???
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-
-	glutPostRedisplay();
-}
-
-
-
-int main(int argc, char** argv)
-{
-	// Initialization GLUT
-	glutInit (&argc,argv);
-	glutInitDisplayMode (GLUT_RGBA | GLUT_DOUBLE);
-    glutInitWindowSize (WinWidth,WinHeight);
-    glutInitWindowPosition (100,100);
-    glutCreateWindow ("Type Two Engine");
-    // -------------------
-    Init();
-	// -------------------
-	glutDisplayFunc(Display);
-	glutReshapeFunc(Reshape);
-	glutKeyboardFunc(Keyboard);
-	glutMotionFunc(MouseMotion);
-	glutMainLoop();
-	//--------------------
-	return 0;
-}
+    
+        else if(xev.type == KeyPress)
+        {
+            glXMakeCurrent(dpy, None, NULL);
+            glXDestroyContext(dpy, glc);
+            XDestroyWindow(dpy, win);
+            XCloseDisplay(dpy);
+            exit(0);
+        }
+    } /* this closes while(1) { */
+} /* this is the } which closes int main(int argc, char *argv[]) { */

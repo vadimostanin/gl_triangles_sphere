@@ -49,6 +49,11 @@ void InvalidateWindow()
     XSendEvent(dpy, win, False, ExposureMask, (XEvent *) &event);
 }
 
+template<typename T>inline T ABS(T x)
+{
+	return (x<0)?(-1)*x:x;
+}
+
 void DrawAQuad()
 {
     glClearColor(1.0, 1.0, 1.0, 1.0);
@@ -71,7 +76,7 @@ void DrawAQuad()
     const float center_x = 0;
     const float center_y = 0;
     
-    const int parts_count = 250;
+    const int parts_count = 5;
     
     float period = (M_PI/parts_count);
     
@@ -80,28 +85,33 @@ void DrawAQuad()
     const float amplitude_max = 10;
     
 #define COLOR_RANDOM (0.1*(rand()%10) + 0.01*(rand()%10) + 0.001*(rand()%10))
-    
-    
+    glBegin(GL_TRIANGLE_FAN);
+    float offset_z = 0;
     for(float j = 0.0 ; j <= M_PI ; j += period )
     {
         float last_color_r = COLOR_RANDOM;
         float last_color_g = COLOR_RANDOM;
         float last_color_b = COLOR_RANDOM;
         
-        const float vertex_z = (amplitude_max-amplitude_max*(M_PI-j))*abs(sin(j));
-        cout<<"vertex_z="<<vertex_z<<endl;
+        const float abs_sin_j = ABS(sin(j));
+        const float abs_sin_j_plus_one = ABS(sin(j-period));
+
+        const float period_z = abs_sin_j;//amplitude_max*ABS((abs_sin_j_plus_one - abs_sin_j));
+        offset_z += period_z;
+        cout<<"j="<<j<<", abs_sin_j="<<abs_sin_j<<", amplitude_max*abs_sin_j="<<amplitude_max*abs_sin_j<<", offset_z="<<offset_z<<", period_z="<<period_z<<endl;
         
         float amplitude_cur = amplitude_max*sin(j);
-        glBegin(GL_TRIANGLE_FAN);
-        glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(center_x, center_y, vertex_z);
-        glColor3f(last_color_r, last_color_g, last_color_b); glVertex3f(amplitude_cur*cos(0), amplitude_cur*sin(0), vertex_z);
-        for(float i = period ; i <= M_PI*2 ; i += period )
+
+        glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(center_x, center_y, offset_z);
+        //glColor3f(last_color_r, last_color_g, last_color_b); glVertex3f(amplitude_cur*cos(0), amplitude_cur*sin(0), offset_z);
+        for(float i = 0.0 ; i <= M_PI*2 ; i += period )
         {
-            glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(amplitude_cur*cos(i), amplitude_cur*sin(i), vertex_z);
+            glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(amplitude_cur*cos(i), amplitude_cur*sin(i), offset_z);
         }
-        glColor3f(last_color_r, last_color_g, last_color_b); glVertex3f(amplitude_cur*cos(0), amplitude_cur*sin(0), vertex_z);
-        glEnd();
+        glColor3f(last_color_r, last_color_g, last_color_b); glVertex3f(amplitude_cur*cos(0), amplitude_cur*sin(0), offset_z);
+
     }
+    glEnd();
 }
 
 int main(int argc, char *argv[])

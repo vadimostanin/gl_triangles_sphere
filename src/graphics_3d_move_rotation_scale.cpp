@@ -75,7 +75,7 @@ static void __printf_vertex_array(float * array, unsigned int size, const char *
 
 void DrawAQuad()
 {
-    cout<<"-------DRAW START-------"<<endl<<endl<<endl;
+//    cout<<"-------DRAW START-------"<<endl<<endl<<endl;
     glClearColor(1.0, 1.0, 1.0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
@@ -86,6 +86,7 @@ void DrawAQuad()
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     gluLookAt(0., 0., 10., 0., 0., 0., 0,1,0);
+    glTranslatef(-mouse_pointer_x, mouse_pointer_y, 0.0);
     
     glRotatef(rotate_x, 0, 1, 0);//x like y
     glRotatef(rotate_y, 1, 0, 0);//y like x
@@ -129,12 +130,12 @@ void DrawAQuad()
     amplitude_cur = amplitude_max*ABS(sin(inter_layer_period));
     offset_z += amplitude_cur*sin(inter_layer_period);//plus to one over z coordinate
     glColor3f(last_color_r, last_color_g, last_color_b); glVertex3f(amplitude_cur*cos(0), amplitude_cur*sin(0), offset_z);
-    cout<<"------FIRST FAN-------"<<endl;
+//    cout<<"------FIRST FAN-------"<<endl;
     
     
     for(int i = 0 ; i < parts_count ; i++ )
     {
-        cout<<"ABS(sin(i*period))="<<ABS(sin(i*layer_period))<<", amplitude_cur="<<amplitude_cur<<endl;
+//        cout<<"ABS(sin(i*period))="<<ABS(sin(i*layer_period))<<", amplitude_cur="<<amplitude_cur<<endl;
         last_triangle_layer_vertex_array[i*vertex_per_triangles_count] = amplitude_cur*cos(i*layer_period);
         last_triangle_layer_vertex_array[i*vertex_per_triangles_count+1] = amplitude_cur*sin(i*layer_period);
         last_triangle_layer_vertex_array[i*vertex_per_triangles_count+2] = offset_z;
@@ -215,7 +216,7 @@ void DrawAQuad()
     glBegin(GL_TRIANGLE_FAN);
     glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(center_x, center_y, offset_z);
 
-    cout<<"------LAST FAN-------"<<endl;
+//    cout<<"------LAST FAN-------"<<endl;
     for(int i = 0 ; i < parts_count ; i++ )
     {
 //        cout<<"x="<<last_triangle_layer_vertex_array[i*vertex_per_triangles_count]<<

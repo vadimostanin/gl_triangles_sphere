@@ -30,7 +30,7 @@ XEvent                  xev;
 int window_width = WINDOW_WIDTH;
 int window_height = WINDOW_HEIGHT;
 
-float rotate_x = 0.0;
+float rotate_x = 90.0;
 float rotate_y = 0.0;
 float rotate_z = 0.0;
 float scale_z = 1.0;
@@ -96,7 +96,7 @@ void DrawAQuad()
     const float center_x = 0;
     const float center_y = 0;
     
-    const int parts_count = 10;
+    const int parts_count = 100;
     
     
     const int vertex_array_size = parts_count*vertex_per_triangles_count;
@@ -126,11 +126,11 @@ void DrawAQuad()
     glBegin(GL_TRIANGLE_FAN);
     glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(center_x, center_y, offset_z);
 
-    offset_z += sin(M_PI/parts_count);//plus to one over z coordinate
+    amplitude_cur = amplitude_max*ABS(sin(inter_layer_period));
+    offset_z += amplitude_cur*sin(inter_layer_period);//plus to one over z coordinate
     glColor3f(last_color_r, last_color_g, last_color_b); glVertex3f(amplitude_cur*cos(0), amplitude_cur*sin(0), offset_z);
     cout<<"------FIRST FAN-------"<<endl;
-
-    amplitude_cur = amplitude_max*ABS(sin(inter_layer_period));
+    
     
     for(int i = 0 ; i < parts_count ; i++ )
     {
@@ -150,10 +150,10 @@ void DrawAQuad()
     glColor3f(last_color_r, last_color_g, last_color_b); glVertex3f(amplitude_cur*cos(0), amplitude_cur*sin(0), offset_z);
     glEnd();
 
-    for(int j = 0 ; j < parts_count ; j++)
+    for(int j = 1 ; j < parts_count ; j++)
     {
-        amplitude_cur = amplitude_max*ABS(sin((j)*inter_layer_period));
-        offset_z += sin(inter_layer_period);
+        amplitude_cur = amplitude_max*ABS(sin((j+1)*inter_layer_period));
+        offset_z += amplitude_cur*sin(inter_layer_period);
         memcpy(temp_last_triangle_layer_vertex_array, last_triangle_layer_vertex_array, vertex_array_size*sizeof(float));
         glBegin(GL_TRIANGLE_STRIP);
         

@@ -97,7 +97,7 @@ void DrawAQuad()
     const float center_x = 0;
     const float center_y = 0;
     
-    const int parts_count = 100;
+    const int parts_count = 20;
     
     
     const int vertex_array_size = parts_count*vertex_per_triangles_count;
@@ -151,7 +151,7 @@ void DrawAQuad()
     glColor3f(last_color_r, last_color_g, last_color_b); glVertex3f(amplitude_cur*cos(0), amplitude_cur*sin(0), offset_z);
     glEnd();
 
-    for(int j = 1 ; j < parts_count ; j++)
+    for(int j = 1 ; j < (parts_count - 1) ; j++)
     {
         amplitude_cur = amplitude_max*ABS(sin((j+1)*inter_layer_period));
         offset_z += amplitude_cur*sin(inter_layer_period);
@@ -175,8 +175,8 @@ void DrawAQuad()
             
             
             glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); 
-            glVertex3f(temp_last_triangle_layer_vertex_array[current_index*vertex_per_triangles_count], 
-                       temp_last_triangle_layer_vertex_array[current_index*vertex_per_triangles_count + 1], 
+            glVertex3f(temp_last_triangle_layer_vertex_array[current_index*vertex_per_triangles_count],
+                       temp_last_triangle_layer_vertex_array[current_index*vertex_per_triangles_count + 1],
                        temp_last_triangle_layer_vertex_array[current_index*vertex_per_triangles_count + 2]);
             
             float next_layer_near_vertex_x = amplitude_cur*cos(current_index*layer_period);
@@ -187,8 +187,8 @@ void DrawAQuad()
             glVertex3f(next_layer_near_vertex_x, next_layer_near_vertex_y, next_layer_near_vertex_z);
             
             glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); 
-            glVertex3f(temp_last_triangle_layer_vertex_array[next_index*vertex_per_triangles_count], 
-                       temp_last_triangle_layer_vertex_array[next_index*vertex_per_triangles_count + 1], 
+            glVertex3f(temp_last_triangle_layer_vertex_array[next_index*vertex_per_triangles_count],
+                       temp_last_triangle_layer_vertex_array[next_index*vertex_per_triangles_count + 1],
                        temp_last_triangle_layer_vertex_array[next_index*vertex_per_triangles_count + 2]);
             
             float next_layer_far_vertex_x = amplitude_cur*cos(next_index*layer_period);
@@ -216,6 +216,8 @@ void DrawAQuad()
     glBegin(GL_TRIANGLE_FAN);
     glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(center_x, center_y, offset_z);
 
+//    cout<<"center_x="<<center_x<<", center_y="<<center_y<<", offset_z="<<offset_z<<endl;
+
 //    cout<<"------LAST FAN-------"<<endl;
     for(int i = 0 ; i < parts_count ; i++ )
     {
@@ -232,58 +234,8 @@ void DrawAQuad()
     glEnd();
 }
 
-//float amplitude_cur = 5;//amplitude_max*sin(j);
-//
-//        glBegin(GL_TRIANGLE_STRIP);
-//        float offset_z = 0;
-//        glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(center_x, center_y, offset_z);
-//
-//        offset_z = 1;
-//        glColor3f(last_color_r, last_color_g, last_color_b); glVertex3f(amplitude_cur*cos(0), amplitude_cur*sin(0), offset_z);
-//        for(float i = 0.0 ; i <= M_PI*2 ; i += period )
-//        {
-//            glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(amplitude_cur*cos(i), amplitude_cur*sin(i), offset_z);
-//        }
-//        glColor3f(last_color_r, last_color_g, last_color_b); glVertex3f(amplitude_cur*cos(0), amplitude_cur*sin(0), offset_z);
-//        glEnd();
 //TRIANGLE_STRIP = {before last vertex, last vertex and new vertex}
 //TRIANGLE_FAN = first vertex, last vertex and new vertex}
-//void DrawAQuad()
-//{
-//    glClearColor(1.0, 1.0, 1.0, 1.0);
-//    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-//    
-//    glMatrixMode(GL_PROJECTION);
-//    glLoadIdentity();
-//    glOrtho(-10., 10., -10., 10., 1, 30.);
-//    
-//    glMatrixMode(GL_MODELVIEW);
-//    glLoadIdentity();
-//    gluLookAt(mouse_pointer_x, mouse_pointer_y, 20., 0.0, 0.0, 0.0, 0,1,0);
-//    
-//    glRotatef(rotate_x, 0, 1, 0);//x like y
-//    glRotatef(rotate_y, 1, 0, 0);//y like x
-//    glRotatef(rotate_z, 0, 0, 1);
-//    
-//    glScalef(scale_z, scale_z, scale_z);
-//#define COLOR_RANDOM (0.1*(rand()%10) + 0.01*(rand()%10) + 0.001*(rand()%10))
-//    glBegin(GL_TRIANGLE_FAN);
-//    glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(0.0, 10.0, 10.0);
-//    glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(5.0, 10.0, 10.0);
-//    glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(0.0, 15.0, 0.0);
-//    glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(0.0, 17.0, 0.0);
-//    glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(10.0, 20.0, 0.0);
-//    glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(10.0, 25.0, 10.0);
-//    glEnd();
-//    
-//    glBegin(GL_TRIANGLE_STRIP);
-//    glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(0.0, 0.0, 10.0);
-//    glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(5.0, 0.0, 10.0);
-//    glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(0.0, 5.0, 0.0);
-//    glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(0.0, 7.0, 0.0);
-//    glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(10.0, 15.0, 10.0);
-//    glEnd();
-//}
 
 int main(int argc, char *argv[])
 {
@@ -389,8 +341,8 @@ int main(int argc, char *argv[])
         }
         else if(xev.type == MotionNotify && mouse_button_pressed)
         {
-            mouse_pointer_x = (start_mouse_point_x - xev.xmotion.x);
-            mouse_pointer_y = (start_mouse_point_y - xev.xmotion.y);
+            mouse_pointer_x = (start_mouse_point_x - xev.xmotion.x)/4;
+            mouse_pointer_y = (start_mouse_point_y - xev.xmotion.y)/4;
             
             cout<<"mouse_pointer_x="<<mouse_pointer_x<<", mouse_pointer_y="<<mouse_pointer_y<<endl;
             InvalidateWindow();

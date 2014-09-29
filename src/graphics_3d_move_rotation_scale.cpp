@@ -4,13 +4,16 @@
 #include<stdlib.h>
 #include<X11/X.h>
 #include<X11/Xlib.h>
+#define GL_GLEXT_PROTOTYPES 1
 #include<GL/gl.h>
 #include<GL/glx.h>
 #include<GL/glu.h>
+
 #include <math.h>
 #include <time.h>
 #include <iostream>
 #include <string.h>
+#include <GL/freeglut_std.h>
 using namespace std;
 
 Display                 *dpy;
@@ -30,18 +33,25 @@ XEvent                  xev;
 int window_width = WINDOW_WIDTH;
 int window_height = WINDOW_HEIGHT;
 
-float rotate_x = 90.0;
+float rotate_x = 0.0;
 float rotate_y = 0.0;
 float rotate_z = 0.0;
 float scale_z = 1.0;
 
 bool mouse_button_pressed = false;
-int mouse_pointer_x = 0;
-int mouse_pointer_y = 0;
+float mouse_pointer_x = 0;
+float mouse_pointer_y = 0;
 int start_mouse_point_x = 0;
 int start_mouse_point_y = 0;
 
-const int vertex_per_triangles_count = 3;
+float camera_look_from_z = 4.0;
+
+typedef struct
+{
+    void *data;
+    unsigned int width;
+    unsigned int height;
+}RGBImageRec;
 
 void InvalidateWindow()
 {
@@ -63,30 +73,108 @@ template<typename T>inline T ABS(T x)
 	return (x<0)?(-1)*x:x;
 }
 
-static void __printf_vertex_array(float * array, unsigned int size, const char * name, int line_number)
+void SetUpLights()
 {
-    cout<<"-----"<<name<<"-"<<line_number<<"-----"<<endl;
-    for( unsigned int i = 0 ; i < size ; i++ )
-    {
-        cout<<"["<<i<<"]:x="<<array[i*vertex_per_triangles_count]<<"; y="<<array[i*vertex_per_triangles_count + 1]<<"; z="<<array[i*vertex_per_triangles_count + 2]<<endl;
-    }
-    cout<<"---------------------"<<endl;
+    float pos[] = {10, 10, 10, 0};
+    float ambient[] = {0.3, 0.3, 0.3, 1};
+    float white[] = {1, 1, 1, 1};
+    
+    glEnable(GL_LIGHTING);
+    glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambient);
+    glEnable(GL_COLOR_MATERIAL);
+    glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
+    
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, white);
+    glLightfv(GL_LIGHT0, GL_POSITION, pos);
+    
+    glEnable(GL_LIGHT0);
 }
 
+static bool loadBMP_custom(const char * imagepath, RGBImageRec &result)
+{
+    // Data read from the header of the BMP file
+    unsigned char header[54]; // Each BMP file begins by a 54-bytes header
+    unsigned int dataPos;     // Position in the file where the actual data begins
+    unsigned int width, height;
+    unsigned int imageSize;   // = width*height*3
+    // Actual RGB data
+    unsigned char * data;
+    
+    // Open the file
+    FILE * file = fopen(imagepath,"rb");
+    if (!file)
+    {
+        printf("Image could not be opened\n");
+        return false;
+    }
+    if ( fread(header, 1, 54, file)!=54 )
+    { // If not 54 bytes read : problem
+        printf("Not a correct BMP file\n");
+        return false;
+    }
+    if ( header[0]!='B' || header[1]!='M' )
+    {
+        printf("Not a correct BMP file\n");
+        return false;
+    }
+    // Read ints from the byte array
+    dataPos    = *(int*)&(header[0x0A]);
+    imageSize  = *(int*)&(header[0x22]);
+    width      = *(int*)&(header[0x12]);
+    height     = *(int*)&(header[0x16]);
+    // Some BMP files are misformatted, guess missing information
+    if (imageSize==0)
+    {
+        imageSize=width*height*3; // 3 : one byte for each Red, Green and Blue component
+    }
+    if (dataPos==0)
+    {
+        dataPos=54; // The BMP header is done that way
+    }
+    // Create a buffer
+    data = new unsigned char [imageSize];
+     
+    // Read the actual data from the file into the buffer
+    fread(data,1,imageSize,file);
+     
+    //Everything is in memory now, the file can be closed
+    fclose(file);
+    
+    result.data = data;
+    result.width = width;
+    result.height = height;
+    
+//    // Create one OpenGL texture
+//    GLuint textureID;
+//    glGenTextures(1, &textureID);
+//     
+//    // "Bind" the newly created texture : all future texture functions will modify this texture
+//    glBindTexture(GL_TEXTURE_2D, textureID);
+//     
+//    // Give the image to OpenGL
+//    glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, data);
+//     
+//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    return true;
+}
+
+RGBImageRec image;
 void DrawAQuad()
 {
 //    cout<<"-------DRAW START-------"<<endl<<endl<<endl;
-    glClearColor(1.0, 1.0, 1.0, 1.0);
+    glClearColor(0.5, 0.5, 0.5, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    glOrtho(-10., 10., -10., 10., 1, 30.);
+    glOrtho(-5., 5., -5., 5., -10, 10.);
     
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    gluLookAt(0., 0., 10., 0., 0., 0., 0,1,0);
-    glTranslatef(-mouse_pointer_x, mouse_pointer_y, 0.0);
+    gluLookAt(mouse_pointer_x, mouse_pointer_y, camera_look_from_z, -0.0, -0.0, 0., 0,1,0);
+//    glTranslatef(-mouse_pointer_x, mouse_pointer_y, 0.0);
     
     glRotatef(rotate_x, 0, 1, 0);//x like y
     glRotatef(rotate_y, 1, 0, 0);//y like x
@@ -94,144 +182,86 @@ void DrawAQuad()
     
     glScalef(scale_z, scale_z, scale_z);
     
-    const float center_x = 0;
-    const float center_y = 0;
-    
-    const int parts_count = 20;
-    
-    
-    const int vertex_array_size = parts_count*vertex_per_triangles_count;
-    float last_triangle_layer_vertex_array[vertex_array_size] = {0.0};
-    float temp_last_triangle_layer_vertex_array[vertex_array_size] = {0.0};
-    memset(&last_triangle_layer_vertex_array, 0.0, vertex_array_size*sizeof(float));
-    memset(&temp_last_triangle_layer_vertex_array, 0.0, vertex_array_size*sizeof(float));
-    
-    float layer_period = ((M_PI*2)/parts_count);
-    float inter_layer_period = ((M_PI)/parts_count);
     
     srand(time(0));
     
-    const float amplitude_max = 10;
-    
-#define COLOR_RANDOM (0.1*(rand()%10) + 0.01*(rand()%10) + 0.001*(rand()%10))
-    
-    
-    float amplitude_cur = amplitude_max;
-    
-    float last_color_r = COLOR_RANDOM;
-    float last_color_g = COLOR_RANDOM;
-    float last_color_b = COLOR_RANDOM;
-    
-    float offset_z = 0;
+#define COLOR_RANDOM 1.0//(0.1*(rand()%10) + 0.01*(rand()%10) + 0.001*(rand()%10))
 
-    glBegin(GL_TRIANGLE_FAN);
-    glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(center_x, center_y, offset_z);
+    glEnable(GL_TEXTURE_2D);        // Разрешение наложение текстуры
+    GLuint  texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
 
-    amplitude_cur = amplitude_max*ABS(sin(inter_layer_period));
-    offset_z += amplitude_cur*sin(inter_layer_period);//plus to one over z coordinate
-    glColor3f(last_color_r, last_color_g, last_color_b); glVertex3f(amplitude_cur*cos(0), amplitude_cur*sin(0), offset_z);
-//    cout<<"------FIRST FAN-------"<<endl;
-    
-    
-    for(int i = 0 ; i < parts_count ; i++ )
-    {
-//        cout<<"ABS(sin(i*period))="<<ABS(sin(i*layer_period))<<", amplitude_cur="<<amplitude_cur<<endl;
-        last_triangle_layer_vertex_array[i*vertex_per_triangles_count] = amplitude_cur*cos(i*layer_period);
-        last_triangle_layer_vertex_array[i*vertex_per_triangles_count+1] = amplitude_cur*sin(i*layer_period);
-        last_triangle_layer_vertex_array[i*vertex_per_triangles_count+2] = offset_z;
-//        cout<<"x="<<last_triangle_layer_vertex_array[i*vertex_per_triangles_count]<<
-//              ", y="<<last_triangle_layer_vertex_array[i*vertex_per_triangles_count + 1]<<
-//              ", z="<<last_triangle_layer_vertex_array[i*vertex_per_triangles_count + 2]<<endl;
-        glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); 
-        glVertex3f(last_triangle_layer_vertex_array[i*vertex_per_triangles_count], 
-                   last_triangle_layer_vertex_array[i*vertex_per_triangles_count+1], 
-                   last_triangle_layer_vertex_array[i*vertex_per_triangles_count + 2]);
-    }
+    glTexImage2D(GL_TEXTURE_2D, 0, 3, image.width, image.height, 0,
+                 GL_RGB, GL_UNSIGNED_BYTE, image.data);
+    printf("image.data=%p\n", image.data);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-    glColor3f(last_color_r, last_color_g, last_color_b); glVertex3f(amplitude_cur*cos(0), amplitude_cur*sin(0), offset_z);
+    glBegin(GL_QUADS);
+    // Передняя грань
+//glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM);
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f, 1.0f);  // Низ право
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f, 1.0f);  // Верх право
+    glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f,  1.0f, 1.0f);  // Верх лево
+    glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f, -1.0f, 1.0f);  // Низ лево
+
+                    // Задняя грань
+    glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM);
+    glTexCoord2f(0.0f, 1.0f); 
+    glVertex3f(-1.0f, -1.0f, -1.0f);  // Низ право
+    glTexCoord2f(0.0f, 0.0f); 
+    glVertex3f(-1.0f,  1.0f, -1.0f);  // Верх право
+    glTexCoord2f(1.0f, 0.0f); 
+    glVertex3f( 1.0f,  1.0f, -1.0f);  // Верх лево
+    glTexCoord2f(1.0f, 1.0f); 
+    glVertex3f( 1.0f, -1.0f, -1.0f);  // Низ лево
+    glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM);
+                    // Верхняя грань
+    glTexCoord2f(0.0f, 1.0f); 
+    glVertex3f(-1.0f,  1.0f, -1.0f);  // Верх лево
+    glTexCoord2f(0.0f, 0.0f); 
+    glVertex3f(-1.0f,  1.0f,  1.0f);  // Низ лево
+    glTexCoord2f(1.0f, 0.0f); 
+    glVertex3f( 1.0f,  1.0f,  1.0f);  // Низ право
+    glTexCoord2f(1.0f, 1.0f); 
+    glVertex3f( 1.0f,  1.0f, -1.0f);  // Верх право
+    glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM);
+                    // Нижняя грань
+    glTexCoord2f(0.0f, 0.0f); 
+    glVertex3f(-1.0f, -1.0f, -1.0f);  // Верх право
+    glTexCoord2f(1.0f, 0.0f); 
+    glVertex3f( 1.0f, -1.0f, -1.0f);  // Верх лево
+    glTexCoord2f(1.0f, 1.0f); 
+    glVertex3f( 1.0f, -1.0f,  1.0f);  // Низ лево
+    glTexCoord2f(0.0f, 1.0f); 
+    glVertex3f(-1.0f, -1.0f,  1.0f);  // Низ право
+    glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM);
+                    // Правая грань
+    glTexCoord2f(1.0f, 0.0f); 
+    glVertex3f( 1.0f, -1.0f, -1.0f);  // Низ право
+    glTexCoord2f(1.0f, 1.0f); 
+    glVertex3f( 1.0f,  1.0f, -1.0f);  // Верх право
+    glTexCoord2f(0.0f, 1.0f); 
+    glVertex3f( 1.0f,  1.0f,  1.0f);  // Верх лево
+    glTexCoord2f(0.0f, 0.0f); 
+    glVertex3f( 1.0f, -1.0f,  1.0f);  // Низ лево
+    glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM);
+                    // Левая грань
+    glTexCoord2f(0.0f, 0.0f); 
+    glVertex3f(-1.0f, -1.0f, -1.0f);  // Низ лево
+    glTexCoord2f(1.0f, 0.0f); 
+    glVertex3f(-1.0f, -1.0f,  1.0f);  // Низ право
+    glTexCoord2f(1.0f, 1.0f); 
+    glVertex3f(-1.0f,  1.0f,  1.0f);  // Верх право
+    glTexCoord2f(0.0f, 1.0f); 
+    glVertex3f(-1.0f,  1.0f, -1.0f);  // Верх лево
+
     glEnd();
-
-    for(int j = 1 ; j < (parts_count - 1) ; j++)
-    {
-        amplitude_cur = amplitude_max*ABS(sin((j+1)*inter_layer_period));
-        offset_z += amplitude_cur*sin(inter_layer_period);
-        memcpy(temp_last_triangle_layer_vertex_array, last_triangle_layer_vertex_array, vertex_array_size*sizeof(float));
-        glBegin(GL_TRIANGLE_STRIP);
-        
-        for(int i = 0 ; i < parts_count ; i++ )
-        {
-            const int current_index = i;
-            const int next_index = (i == (parts_count - 1) ? 0 : (i + 1));
-//            
-//            cout<<"arr_x="<<temp_last_triangle_layer_vertex_array[current_index*vertex_per_triangles_count]<<
-//                  ", arr_y="<<temp_last_triangle_layer_vertex_array[current_index*vertex_per_triangles_count + 1]<<
-//                  ", arr_z="<<temp_last_triangle_layer_vertex_array[current_index*vertex_per_triangles_count + 2]<<endl;
-//            cout<<"new_x="<<amplitude_cur*cos(current_index*period)<<", new_y="<<amplitude_cur*sin(current_index*period)<<", new_z="<<offset_z<<endl;
-//            cout<<"arr_x="<<temp_last_triangle_layer_vertex_array[next_index*vertex_per_triangles_count]<<
-//                          ", arr_y="<<temp_last_triangle_layer_vertex_array[next_index*vertex_per_triangles_count + 1]<<
-//                          ", arr_z="<<temp_last_triangle_layer_vertex_array[next_index*vertex_per_triangles_count + 2]<<endl;
-//            cout<<"new_x="<<amplitude_cur*cos(next_index*period)<<", new_y="<<amplitude_cur*sin(next_index*period)<<", new_z="<<offset_z<<endl;
-//            
-            
-            
-            glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); 
-            glVertex3f(temp_last_triangle_layer_vertex_array[current_index*vertex_per_triangles_count],
-                       temp_last_triangle_layer_vertex_array[current_index*vertex_per_triangles_count + 1],
-                       temp_last_triangle_layer_vertex_array[current_index*vertex_per_triangles_count + 2]);
-            
-            float next_layer_near_vertex_x = amplitude_cur*cos(current_index*layer_period);
-            float next_layer_near_vertex_y = amplitude_cur*sin(current_index*layer_period);
-            float next_layer_near_vertex_z = offset_z;
-            
-            glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); 
-            glVertex3f(next_layer_near_vertex_x, next_layer_near_vertex_y, next_layer_near_vertex_z);
-            
-            glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); 
-            glVertex3f(temp_last_triangle_layer_vertex_array[next_index*vertex_per_triangles_count],
-                       temp_last_triangle_layer_vertex_array[next_index*vertex_per_triangles_count + 1],
-                       temp_last_triangle_layer_vertex_array[next_index*vertex_per_triangles_count + 2]);
-            
-            float next_layer_far_vertex_x = amplitude_cur*cos(next_index*layer_period);
-            float next_layer_far_vertex_y = amplitude_cur*sin(next_index*layer_period);
-            float next_layer_far_vertex_z = offset_z;
-                        
-            glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); 
-            glVertex3f(amplitude_cur*cos(next_index*layer_period), amplitude_cur*sin(next_index*layer_period), offset_z);
-            
-            
-            last_triangle_layer_vertex_array[current_index*vertex_per_triangles_count] = next_layer_near_vertex_x;
-            last_triangle_layer_vertex_array[current_index*vertex_per_triangles_count+1] = next_layer_near_vertex_y;
-            last_triangle_layer_vertex_array[current_index*vertex_per_triangles_count+2] = next_layer_near_vertex_z;
-            
-            last_triangle_layer_vertex_array[next_index*vertex_per_triangles_count] = next_layer_far_vertex_x;
-            last_triangle_layer_vertex_array[next_index*vertex_per_triangles_count+1] = next_layer_far_vertex_y;
-            last_triangle_layer_vertex_array[next_index*vertex_per_triangles_count+2] = next_layer_far_vertex_z;
-        }
-        
-        glEnd();
-    }
     
-    offset_z += amplitude_cur*sin(inter_layer_period);//plus to one over z coordinate
-    
-    glBegin(GL_TRIANGLE_FAN);
-    glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); glVertex3f(center_x, center_y, offset_z);
-
-//    cout<<"center_x="<<center_x<<", center_y="<<center_y<<", offset_z="<<offset_z<<endl;
-
-//    cout<<"------LAST FAN-------"<<endl;
-    for(int i = 0 ; i < parts_count ; i++ )
-    {
-//        cout<<"x="<<last_triangle_layer_vertex_array[i*vertex_per_triangles_count]<<
-//              ", y="<<last_triangle_layer_vertex_array[i*vertex_per_triangles_count + 1]<<
-//              ", z="<<last_triangle_layer_vertex_array[i*vertex_per_triangles_count + 2]<<endl;
-        glColor3f(COLOR_RANDOM, COLOR_RANDOM, COLOR_RANDOM); 
-        glVertex3f(last_triangle_layer_vertex_array[i*vertex_per_triangles_count], 
-                   last_triangle_layer_vertex_array[i*vertex_per_triangles_count+1], 
-                   last_triangle_layer_vertex_array[i*vertex_per_triangles_count + 2]);
-    }
-
-    glColor3f(last_color_r, last_color_g, last_color_b); glVertex3f(amplitude_cur*cos(0), amplitude_cur*sin(0), last_triangle_layer_vertex_array[2]);
-    glEnd();
+    SetUpLights();
 }
 
 //TRIANGLE_STRIP = {before last vertex, last vertex and new vertex}
@@ -275,8 +305,12 @@ int main(int argc, char *argv[])
     glc = glXCreateContext(dpy, vi, NULL, GL_TRUE);
     glXMakeCurrent(dpy, win, glc);
     
-    glEnable(GL_DEPTH_TEST); 
+    glEnable(GL_DEPTH_TEST);
     
+    glutInit(&argc, argv);
+
+    if( loadBMP_custom("./res/allfons.ru-12581.bmp", image) == false )
+            return false;
     while(1)
     {
         XNextEvent(dpy, &xev);
@@ -313,8 +347,17 @@ int main(int argc, char *argv[])
                 case 53://X
                         rotate_z -= 1.1;
                     break;
-                case 54://X
+                case 54://C
                     scale_z -= 0.1;
+                break;
+                case 55://V
+                    scale_z += 0.1;
+                break;
+                case 56://B
+                    camera_look_from_z -= 0.1;
+                break;
+                case 57://N
+                    camera_look_from_z += 0.1;
                 break;
             }
             InvalidateWindow();
@@ -322,6 +365,7 @@ int main(int argc, char *argv[])
             cout<<"rotate_x="<<rotate_x<<endl;
             cout<<"rotate_y="<<rotate_y<<endl;
             cout<<"rotate_z="<<rotate_z<<endl;
+            cout<<"camera_look_from_z="<<camera_look_from_z<<endl;
                 
 //            glXMakeCurrent(dpy, None, NULL);
 //            glXDestroyContext(dpy, glc);
@@ -341,8 +385,8 @@ int main(int argc, char *argv[])
         }
         else if(xev.type == MotionNotify && mouse_button_pressed)
         {
-            mouse_pointer_x = (start_mouse_point_x - xev.xmotion.x)/4;
-            mouse_pointer_y = (start_mouse_point_y - xev.xmotion.y)/4;
+            mouse_pointer_x = (start_mouse_point_x - xev.xmotion.x)*0.1;
+            mouse_pointer_y = (start_mouse_point_y - xev.xmotion.y)*0.1;
             
             cout<<"mouse_pointer_x="<<mouse_pointer_x<<", mouse_pointer_y="<<mouse_pointer_y<<endl;
             InvalidateWindow();
